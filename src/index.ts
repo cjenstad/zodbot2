@@ -128,11 +128,14 @@ client.on('message', async (channel, tags, message, self) => {
     }
 
     // if stocks don't exist, create them
-    const stocks = await Stocks.find().exec();
-    if (!stocks) {
-        initStocks(db)
-            .catch(err => console.error('Error adding stocks: ', err));
-        console.log('Stocks added');
+    try {
+        const stocks = await Stocks.find().exec();
+        if (!stocks || stocks.length === 0) {
+            await initStocks(db);
+            console.log('Stocks initialized successfully');
+        }
+    } catch (err) {
+        console.error('Error checking/initializing stocks:', err);
     }
 
     //points section
