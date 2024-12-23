@@ -7,6 +7,9 @@ import mongoose from 'mongoose';
  * @returns A promise that resolves when the stocks have been initialized.
  */
 export async function initStocks(db: typeof mongoose) {
+    // First, ensure we have the Stocks model
+    const Stocks = db.model('Stocks');
+    
     const stocks = [
         { symbol: 'WICH', currentPrice: 150, lastPrice: 148 },
         { symbol: 'SNAX', currentPrice: 2500, lastPrice: 2498 },
@@ -28,16 +31,22 @@ export async function initStocks(db: typeof mongoose) {
         // Add more stocks here
     ];
 
-    // Add stocks to the database if they don't exist already
-    for (const stock of stocks) {
-        const existingStock = await Stocks.findOne({ symbol: stock.symbol });
-        // console.log(`findOne result for ${stock.symbol}:`, existingStock);
-        if (existingStock) {
-            console.log(`Stock already exists: ${stock.symbol}`);
-        } else {
-            console.log(`Adding stock: ${stock.symbol}`);
-            await addStocks(db, stock.symbol, stock.currentPrice, stock.lastPrice);
-        }
+    try {
+        // Wait for all stock additions to complete
+        await Promise.all(stocks.map(async (stock) => {
+            const existingStock = await Stocks.findOne({ symbol: stock.symbol }).exec();
+            if (!existingStock) {
+                console.log(`Adding stock: ${stock.symbol}`);
+                await addStocks(db, stock.symbol, stock.currentPrice, stock.lastPrice);
+            } else {
+                console.log(`Stock already exists: ${stock.symbol}`);
+            }
+        }));
+        
+        console.log('All stocks initialized successfully');
+    } catch (error) {
+        console.error('Error initializing stocks:', error);
+        throw error;
     }
 }
 
