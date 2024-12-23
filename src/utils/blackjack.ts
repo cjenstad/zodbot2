@@ -46,17 +46,22 @@ export function calculateHand(hand: string[]) {
     return value;
 }
 
+// Add this helper function
+function hasBlackjack(hand: string[]) {
+    return hand.length === 2 && calculateHand(hand) === 21;
+}
+
 export async function startBlackjack(db: typeof mongoose, username: string, bet: number) {
     const User = db.model('User');
     const user = await User.findOne({ username });
     if (!user) {
-        return 'User not found';
+        return `${username} not found`;
     }
     if (user && user.blackjackHand.length > 0) {
-        return `You are already playing blackjack! Your hand: ${calculateHand(user.blackjackHand)} (${user.blackjackHand.join(', ')}) Dealer shows: ${calculateHand(user.dealerHand)} (${user.dealerHand[0]}). Type !hit to draw another card, !double to double down (if you can afford it), or !stand to stick with your cards.`
+        return `${username}, you are already playing blackjack! Your hand: ${calculateHand(user.blackjackHand)} (${user.blackjackHand.join(', ')}) Dealer shows: ${calculateHand(user.dealerHand)} (${user.dealerHand[0]}). Type !hit to draw another card, !double to double down (if you can afford it), or !stand to stick with your cards.`
     }
     if (!user || bet < 1 || bet > user.points) {
-        return `Invalid bet. Your current balance is ${user.points}`;
+        return `${username}, invalid bet. Your current balance is ${user.points}`;
     }
     if (user && user.points && user.points >= bet) {
         deck = ['A♠', '2♠', '3♠', '4♠', '5♠', '6♠', '7♠', '8♠', '9♠', '10♠', 'J♠', 'Q♠', 'K♠',
@@ -67,9 +72,36 @@ export async function startBlackjack(db: typeof mongoose, username: string, bet:
         user.blackjackBet = bet;
         user.blackjackHand = [drawCard(), drawCard()];
         user.dealerHand = [drawCard()];
+
+        // Check for player blackjack
+        if (hasBlackjack(user.blackjackHand)) {
+            // Draw dealer's second card to check for dealer blackjack
+            user.dealerHand.push(drawCard());
+            
+            if (hasBlackjack(user.dealerHand)) {
+                // Push if both have blackjack
+                user.points += bet;
+                const message = `${username}, both you and dealer have Blackjack! Push. Your hand: ${user.blackjackHand.join(', ')}, Dealer's hand: ${user.dealerHand.join(', ')}`;
+                user.blackjackHand = [];
+                user.dealerHand = [];
+                user.blackjackBet = 0;
+                await user.save();
+                return message;
+            } else {
+                // Player wins with blackjack (3:2 payout)
+                user.points += bet + Math.floor(bet * 1.5);
+                const message = `${username} got Blackjack! You win! Your hand: ${user.blackjackHand.join(', ')}, Dealer's hand: ${user.dealerHand.join(', ')}`;
+                user.blackjackHand = [];
+                user.dealerHand = [];
+                user.blackjackBet = 0;
+                await user.save();
+                return message;
+            }
+        }
+
         await user.save();
         const userHandValue = calculateHand(user.blackjackHand);
-        return `Dealing cards! Your hand: ${userHandValue} (${user.blackjackHand.join(', ')}), Dealer shows: ${calculateHand(user.dealerHand)} (${user.dealerHand[0]}). Type !hit to draw another card, !double to double down (if you can afford it), or !stand to stick with your cards.`
+        return `${username}, dealing cards! Your hand: ${userHandValue} (${user.blackjackHand.join(', ')}), Dealer shows: ${calculateHand(user.dealerHand)} (${user.dealerHand[0]}). Type !hit to draw another card, !double to double down (if you can afford it), or !stand to stick with your cards.`
     }
 }
 
@@ -80,7 +112,7 @@ export async function hit(db: typeof mongoose, username: string) {
         user.blackjackHand.push(drawCard());
         const userHandValue = calculateHand(user.blackjackHand);
         if (userHandValue > 21) {
-            const message = `Bust! Your hand value is ${userHandValue} (${user.blackjackHand.join(', ')}).`;
+            const message = `${username} busts! Your hand value is ${userHandValue} (${user.blackjackHand.join(', ')}).`;
             user.blackjackHand = [];
             user.dealerHand = [];
             user.blackjackBet = 0;
@@ -88,10 +120,10 @@ export async function hit(db: typeof mongoose, username: string) {
             return message;
         }
         await user.save();
-        return `Your new hand: ${userHandValue} (${user.blackjackHand.join(', ')})`;
+        return `${username}, your new hand: ${userHandValue} (${user.blackjackHand.join(', ')})`;
     }
     if(user.blackjackHand.length === 0){
-        return 'You are not currently playing blackjack.';
+        return `${username}, you are not currently playing blackjack.`;
     }
 }
 
@@ -106,7 +138,7 @@ export async function doubleDown(db: typeof mongoose, username: string) {
             await user.save();
             const userHandValue = calculateHand(user.blackjackHand);
             if (userHandValue > 21) {
-                const message = `Bust! Your hand value is ${userHandValue} (${user.blackjackHand.join(', ')}).`;
+                const message = `${username} busts! Your hand value is ${userHandValue} (${user.blackjackHand.join(', ')}).`;
                 user.blackjackHand = [];
                 user.dealerHand = [];
                 user.blackjackBet = 0;
@@ -116,10 +148,10 @@ export async function doubleDown(db: typeof mongoose, username: string) {
                 return stand(db, username);
             }
         }
-        return 'Insufficient points to double down';
+        return `${username}, insufficient points to double down`;
     }
     if(user.blackjackHand.length === 0){
-        return 'You are not currently playing blackjack.';
+        return `${username}, you are not currently playing blackjack.`;
     }
 }
 
@@ -136,7 +168,7 @@ export async function stand(db: typeof mongoose, username: string) {
         }
         userHandValue = calculateHand(user.blackjackHand);
         if(dealerHandValue > 21){
-            const message = `Dealer busts! Your hand value: ${userHandValue} (${user.blackjackHand.join(', ')}), Dealer final hand: ${dealerHandValue} (${user.dealerHand.join(', ')})`;
+            const message = `Dealer busts! ${username} wins! Your hand value: ${userHandValue} (${user.blackjackHand.join(', ')}), Dealer final hand: ${dealerHandValue} (${user.dealerHand.join(', ')})`;
             user.points += user.blackjackBet * 2;
             user.blackjackHand = [];
             user.dealerHand = [];
@@ -144,7 +176,7 @@ export async function stand(db: typeof mongoose, username: string) {
             await user.save();
             return message;
         } else if (userHandValue > dealerHandValue) {
-            const message = `You win! Your hand value: ${userHandValue} (${user.blackjackHand.join(', ')}) Dealer final hand: ${dealerHandValue} (${user.dealerHand.join(', ')})`;
+            const message = `${username} wins! Your hand value: ${userHandValue} (${user.blackjackHand.join(', ')}) Dealer final hand: ${dealerHandValue} (${user.dealerHand.join(', ')})`;
             user.points += 2 * user.blackjackBet;
             user.blackjackHand = [];
             user.dealerHand = [];
@@ -152,14 +184,14 @@ export async function stand(db: typeof mongoose, username: string) {
             await user.save();
             return message;
         } else if (userHandValue < dealerHandValue) {
-            const message = `You lose! Your hand value: ${userHandValue} (${user.blackjackHand.join(', ')}) Dealer final hand: ${dealerHandValue} (${user.dealerHand.join(', ')})`;
+            const message = `${username} loses! Your hand value: ${userHandValue} (${user.blackjackHand.join(', ')}) Dealer final hand: ${dealerHandValue} (${user.dealerHand.join(', ')})`;
             user.blackjackHand = [];
             user.dealerHand = [];
             user.blackjackBet = 0;
             await user.save();
             return message;
         } else {
-            const message = `Tie! Your hand value: ${userHandValue} (${user.blackjackHand.join(', ')}) Dealer final hand: ${dealerHandValue} (${user.dealerHand.join(', ')})`;
+            const message = `${username}, it's a tie! Your hand value: ${userHandValue} (${user.blackjackHand.join(', ')}) Dealer final hand: ${dealerHandValue} (${user.dealerHand.join(', ')})`;
             user.points += user.blackjackBet;
             user.blackjackHand = [];
             user.dealerHand = [];
@@ -169,6 +201,6 @@ export async function stand(db: typeof mongoose, username: string) {
         }
     }
     if(user.blackjackHand.length === 0){
-        return 'You are not currently playing blackjack.';
+        return `${username}, you are not currently playing blackjack.`;
     }
 }
