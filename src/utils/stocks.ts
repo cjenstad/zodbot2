@@ -20,7 +20,11 @@ export async function initStocks(db: typeof mongoose) {
         { symbol: 'BOB', currentPrice: 50, lastPrice: 48 },
         { symbol: 'ALLG', currentPrice: 100, lastPrice: 98 },
         { symbol: 'LJF', currentPrice: 200, lastPrice: 198 },
-        { symbol: 'DORG', currentPrice: 300, lastPrice: 298 }
+        { symbol: 'DORG', currentPrice: 300, lastPrice: 298 },
+        { symbol: 'GAS', currentPrice: 500, lastPrice: 498  },
+        { symbol: 'GOKU', currentPrice: 600, lastPrice: 598 },
+        { symbol: 'CLIV', currentPrice: 10, lastPrice: 8},
+        { symbol: 'DAGG', currentPrice: 20, lastPrice: 18 }
         // Add more stocks here
     ];
 
