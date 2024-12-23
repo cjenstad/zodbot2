@@ -51,7 +51,7 @@ export async function updateStocks(db: typeof mongoose) {
             stock.lastPrice = stock.currentPrice;
             if (stock.currentPrice) {
                 stock.currentPrice += random * Math.floor(Math.random() * 5);
-                if (stock.currentPrice < 1) stock.currentPrice = 1;
+                if (stock.currentPrice < 2) stock.currentPrice = 2;
             }
             await stock.save();
         });
@@ -106,12 +106,13 @@ export async function buyStock(db: typeof mongoose, username: string, symbol: st
 
     const ownedStock = user.ownedStocks.find((s: { symbol: string; }) => s.symbol === symbol);
     if (ownedStock) {
-        if (ownedStock.quantity && ownedStock.purchasePrice) {
-
-            const oldPurchasePrice = ownedStock.purchasePrice;
-            const newPurchasePrice = stock.currentPrice;
+        if (ownedStock.quantity && ownedStock.purchasePrice && stock.currentPrice) {
+            // Calculate weighted average of old and new purchase prices
+            const totalOldValue = ownedStock.purchasePrice * ownedStock.quantity;
+            const totalNewValue = stock.currentPrice * quantity;
             const totalQuantity = ownedStock.quantity + quantity;
-            ownedStock.purchasePrice = Math.round((oldPurchasePrice * ownedStock.quantity + newPurchasePrice * quantity) / totalQuantity);
+            
+            ownedStock.purchasePrice = Math.round((totalOldValue + totalNewValue) / totalQuantity);
             ownedStock.quantity += quantity;
         }
     } else {
