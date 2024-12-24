@@ -41,6 +41,9 @@ async function main() {
         for (const channel of opts.channels) {
             const dbName = channel.trim().replace('#', '');
             const conn = mongoose.createConnection(`mongodb://127.0.0.1:27017/${dbName}`);
+            conn.model('User', UserSchema);
+            conn.model('Lottery', LotterySchema);
+            conn.model('Stocks', StocksSchema);
             connections.set(channel, conn);
             console.log(`Connected to MongoDB database for channel: ${dbName}`);
         }
@@ -488,7 +491,7 @@ client.on('message', async (channel, tags, message, self) => {
     }
 
     // !lottery rules: explain lottery rules
-    const lotteryRulesRegex = /^!lottery rules$/i;
+    const lotteryRulesRegex = /^!lottery-rules$/i;
     if (chat.match(lotteryRulesRegex)) {
         client.say(channel, 'Lottery Rules: Cost is 100 points per ticket. Pick a number between 1-1000. ' +
             'If your number matches the winning number, you win the jackpot (1,000,000 points + bonus pot)! ' +
@@ -496,7 +499,7 @@ client.on('message', async (channel, tags, message, self) => {
     }
 
     // !scamball rules: explain scamball rules
-    const scamballRulesRegex = /^!scamball rules$/i;
+    const scamballRulesRegex = /^!scamball-rules$/i;
     if (chat.match(scamballRulesRegex)) {
         const lottery = await Lottery.findOne();
         client.say(channel, 'Scamball Rules: Cost is 2 points per ticket. Pick 5 different numbers (1-69) and 1 scamball number (1-26). ' +
