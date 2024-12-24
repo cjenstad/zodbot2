@@ -22,6 +22,7 @@ export const UserSchema = new mongoose.Schema({
 //Define the Lottery schema
 export const LotterySchema = new mongoose.Schema({
     lotteryBonus: Number,
+    scamballJackpot: Number
 });
 
 //Define the Stocks schema
