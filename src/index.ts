@@ -4,7 +4,7 @@ import { UserSchema, LotterySchema, StocksSchema, addUser, addLottery } from './
 import { initStocks, updateStocks, updateTicker, buyStock, sellStock, checkMyStocks } from './utils/stocks';
 import { Emoji, buyEmoji, sellEmoji } from './utils/emoji';
 import { startBlackjack, hit, doubleDown, stand } from './utils/blackjack';
-import { lotteryRoll } from './utils/lottery';
+import { lotteryRoll, scamballRoll } from './utils/lottery';
 
 config();
 
@@ -447,6 +447,22 @@ client.on('message', async (channel, tags, message, self) => {
         client.say(channel, message);
     }
 
+    // !scamball: play scamball lottery
+    const scamballRegex = /^!scamball (\d+) (\d+) (\d+) (\d+) (\d+) \[(\d+)\]$/i;
+    const scamballMatch = chat.match(scamballRegex);
+    if (scamballMatch) {
+        const numbers = [
+            parseInt(scamballMatch[1]),
+            parseInt(scamballMatch[2]),
+            parseInt(scamballMatch[3]),
+            parseInt(scamballMatch[4]),
+            parseInt(scamballMatch[5])
+        ];
+        const scamball = parseInt(scamballMatch[6]);
+        const message = await scamballRoll(db, user.username, numbers, scamball) || '';
+        client.say(channel, message);
+    }
+
     //emoji section
     // !store: check available emojis in store
     const storeRegex = /^!(store|shop)$/i;
@@ -469,5 +485,22 @@ client.on('message', async (channel, tags, message, self) => {
             const message = user.emojiCollection.length > 0 ? `${msgUsername}'s collection: ${user.emojiCollection.join(' , ')}` : `${msgUsername} has nothing but dust in their collection :(`;
             client.say(channel, message);
         }
+    }
+
+    // !lottery rules: explain lottery rules
+    const lotteryRulesRegex = /^!lottery rules$/i;
+    if (chat.match(lotteryRulesRegex)) {
+        client.say(channel, 'Lottery Rules: Cost is 100 points per ticket. Pick a number between 1-1000. ' +
+            'If your number matches the winning number, you win the jackpot (1,000,000 points + bonus pot)! ' +
+            'Every losing ticket adds 99 points to the bonus pot.');
+    }
+
+    // !scamball rules: explain scamball rules
+    const scamballRulesRegex = /^!scamball rules$/i;
+    if (chat.match(scamballRulesRegex)) {
+        const lottery = await Lottery.findOne();
+        client.say(channel, 'Scamball Rules: Cost is 2 points per ticket. Pick 5 different numbers (1-69) and 1 scamball number (1-26). ' +
+            'Format: !scamball n1 n2 n3 n4 n5 [s]. Prizes: Match 5+SB=Jackpot, 5=1M, 4+SB=50k, 4=100, 3+SB=100, ' +
+            '3=7, 2+SB=7, 1+SB=4, SB=4 points. Current jackpot: ' + lottery.scamballJackpot + ' points.');
     }
 });
